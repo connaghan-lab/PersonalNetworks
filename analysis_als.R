@@ -40,16 +40,45 @@ library(rstudioapi)
 rm(list = ls())
 
 ### Path info
-data_file <- ""
-out_dir <- ""
-dict_file <- "PersonalNetworkSurvey_RedcapCodebook.csv"
+# data_file <- "C:/Users/nb254/Mass General Brigham/SOC Connect Project IHP - General/data/redcap/persnet1/soccon_persnet_demographic_1_2026-05-11.csv"
+# out_dir <- "C:/Users/nb254/Mass General Brigham/SOC Connect Project IHP - General/results/PERSNET OUTPUTS/persnet1/"
+# is_v2 <- FALSE
+
+data_file <- "C:/Users/nb254/Mass General Brigham/SOC Connect Project IHP - General/data/redcap/persnet2/soccon_persnet_demographic_2_2026-05-11.csv"
+out_dir <- "C:/Users/nb254/Mass General Brigham/SOC Connect Project IHP - General/results/PERSNET OUTPUTS/persnet2/"
+is_v2 <- TRUE
+
+dict_file <- "C:/Users/nb254/Mass General Brigham/SOC Connect Project TEAM - General/PERSNET-ALS/PersonalNetworkSurvey_RedcapCodebook.csv"
 
 # Settings/flags
 MAKE_FIGS <- TRUE
 use_relat_names_in_figs <- TRUE
 replace_ids_in_figs <- TRUE
 repel_labels <- FALSE
-is_v2 <- TRUE
+
+### Quick check to help ensure is_v2 flag is correct
+if ((is_v2 && !grepl("persnet2", data_file))) {
+    prompt = "Are you sure this is v2 data? `is_v2` is set to TRUE but `persnet2` is NOT in the data filepath. Continue? (y/n): "
+} else if (!is_v2 && grepl("persnet2", data_file)) {
+    prompt = "Are you sure this is v1 data? `is_v2` is set to FALSE but `persnet2` IS in the data filepath. Continue? (y/n): "
+} else {
+    prompt = NULL
+}
+
+if (!is.null(prompt)) {
+    resp = readline(prompt = prompt)
+    while (!(resp %in% c("y", "n"))) {
+        resp = readline(prompt = prompt)
+    }
+    if (resp == "n") {
+        # Exit without showing error message
+        opt <- options(show.error.messages = FALSE)
+        on.exit(options(opt))
+        print("Exiting...")
+        stop()
+    }
+}
+
 
 out_suffix <- as.character(Sys.Date())
 metrics_out_name <- "persnet_metrics"
