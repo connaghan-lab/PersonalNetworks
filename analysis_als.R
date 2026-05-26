@@ -40,15 +40,15 @@ library(rstudioapi)
 rm(list = ls())
 
 ### Path info
-# data_file <- "C:/Users/nb254/Mass General Brigham/SOC Connect Project IHP - General/data/redcap/persnet1/soccon_persnet_demographic_1_2026-05-11.csv"
-# out_dir <- "C:/Users/nb254/Mass General Brigham/SOC Connect Project IHP - General/results/PERSNET OUTPUTS/persnet1/"
+# data_file <- "" # output of prep_redcap_exports for phase 1 data
+# out_dir <- "" # output directory
 # is_v2 <- FALSE
 
-data_file <- "C:/Users/nb254/Mass General Brigham/SOC Connect Project IHP - General/data/redcap/persnet2/soccon_persnet_demographic_2_2026-05-11.csv"
-out_dir <- "C:/Users/nb254/Mass General Brigham/SOC Connect Project IHP - General/results/PERSNET OUTPUTS/persnet2/"
+data_file <- "" # output of prep_redcap_exports for phase 2 data
+out_dir <- "" # output directory
 is_v2 <- TRUE
 
-dict_file <- "C:/Users/nb254/Mass General Brigham/SOC Connect Project TEAM - General/PERSNET-ALS/PersonalNetworkSurvey_RedcapCodebook.csv"
+dict_file <- "" # Path to REDCap codebook file
 
 # Settings/flags
 MAKE_FIGS <- TRUE
@@ -339,12 +339,14 @@ df_clean$zip <- as.character(df_clean$zip) #double check zip as string
 ### Writing files
 write.csv(
     df_clean,
-    paste(
+    file.path(
         out_dir,
-        metrics_out_name,
-        ifelse(out_suffix != "", paste("_", out_suffix, sep = ""), ""),
-        ".csv",
-        sep = ""
+        paste(
+            metrics_out_name,
+            ifelse(out_suffix != "", paste("_", out_suffix, sep = ""), ""),
+            ".csv",
+            sep = ""
+        )
     ),
     row.names = FALSE
 )
@@ -383,6 +385,13 @@ if (MAKE_FIGS) {
             df_for_figs$n_alts_with_data
         ),
         SIMPLIFY = FALSE
+    )
+
+    relat_scatter <- plot_multians_scatter(
+        df = df_for_figs,
+        mapping = relat_map,
+        attribute = "relat",
+        record_id_gsub = "P"
     )
 
     ############# SAVE OUTPUTS #############
@@ -441,12 +450,11 @@ if (MAKE_FIGS) {
     # Creating output PDF. Note that if you'd like to change the output to something other than a PDF,
     #  change the extention within the output file name and uncomment the last two lines of code.
     ggsave(
-        paste(
+        paste0(
             out_dir,
             "Social_Network_Grid",
-            ifelse(out_suffix != "", paste("_", out_suffix, sep = ""), ""),
-            ".pdf",
-            sep = ""
+            ifelse(out_suffix != "", paste0("_", out_suffix), ""),
+            ".pdf"
         ),
         wrap_list_network_plots,
         width = output_width,
@@ -454,6 +462,16 @@ if (MAKE_FIGS) {
         # This code is only needed in case the user wants to change the output to a raster output (not PDF)
         # units = "in",
         # dpi = 300
+    )
+
+    ggsave(
+        paste0(
+            out_dir,
+            "relationships_scatterplot",
+            ifelse(out_suffix != "", paste0("_", out_suffix), ""),
+            ".pdf"
+        ),
+        relat_scatter
     )
 
     i = 0

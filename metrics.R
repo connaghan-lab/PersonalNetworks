@@ -681,11 +681,12 @@ prop_alters_singleans <- function(
     #   for attributes that may have only have one answer (such as "speak" and "length").
     #
     # Inputs:
-    #   df         = A personal network data frame
-    #   categories = `string` or `character vector` containing one or multiple categories
-    #       from which to calcluate proportion (e.g., c("Monthly", "Less often") OR "Monthly")
-    #   mapping    = `named double` corresponding labels (names) and values (numeric) for the attribute
-    #   attribute  = `string` attribute in which categories can be found (e.g. "relat")
+    #   df                  = A personal network data frame
+    #   categories          = `string` or `character vector` containing one or multiple categories
+    #                           from which to calcluate proportion (e.g., c("Monthly", "Less often") OR "Monthly")
+    #   mapping             = `named double` corresponding labels (names) and values (numeric) for the attribute
+    #   attribute           = `string` attribute in which categories can be found (e.g. "relat")
+    #   attribute_only_cols = `logical` if TRUE, columns are matched by only attributeNUM. If FALSE: nameAttributeNUM. Default: FALSE
     # Outputs:
     #   `double` Proportions of alters that have the category/one of the categories in `categories`.
     #   Returns all NAs if cannot find columns related to `attribute`

@@ -182,6 +182,8 @@ plot_single_network <- function(
     #   tidygra      = A tidygraph object representing a personal network
     #   edge_size    = Numeric width of the edges. Default: 0.5
     #   node_size    = Numeric size of the nodes. Default: 2
+    #   friend_fill  = Character color with which to fill nodes that contain the text "friend". Default: "#89b53c"
+    #   family_fill  = Character color with which to fill nodes that contain the text "family". Default: "#007080"
     #   weak_color   = Character color of line indicating weak connections between nodes. Default: "#236782"
     #   strong_color = Character color of line indicating strong connections between nodes. Default: "#c26c21"
     # Outputs: A ggplot object visualizing the network structure
@@ -279,13 +281,29 @@ plot_prop_singleans <- function(
     df,
     mapping,
     attribute,
-    attribute_only_cols,
     key_name,
+    attribute_only_cols = FALSE,
     palette = "Dark2",
-    plot_type = "grouped_bar"
+    plot_type = "pie"
 ) {
+    # # # # # # # #
+    # Function: Plots either tiled pie charts or a grouped bar chart showing the proportion
+    #           of each possible answer option for each participant in df.
+    #           NOTE: Pie charts are generally discouraged in dataviz,
+    #           but it is often the better/more informative choice of the two offered here
+    # Inputs:
+    #   df                  = A personal network dataframe with rows for each subject
+    #   mapping             = `named double` corresponding labels (names) and values (numeric) for the attribute
+    #   attribute           = `string` attribute in which categories can be found (e.g. "relat")
+    #   key_name            = `string` the name to label the legend associated with the mapping options (legend title).
+    #   attribute_only_cols = `logical` if TRUE, columns are matched by only attributeNUM. If FALSE: nameAttributeNUM. Default: FALSE
+    #   palette             = `string` the BREWER color palette to use in the plots. "Dark2"
+    #   plot_type           = `string` indicating the plot type (either "pie" or "grouped_bar"). Default = "pie"
+    # Outputs: A ggplot
+    # # # # # # # #
+
     n_alters <- n_alters_with_data(df)
-    p_names <- sprintf("Participant %s -- n = %s", 1:nrow(df), n_alters)
+    p_names <- sprintf("Participant %s -- n = %s", df$record_id, n_alters)
 
     # Get proportions for every mapping value
     props <- purrr::map(names(mapping), \(category) {
@@ -304,12 +322,20 @@ plot_prop_singleans <- function(
         setNames(p_names) %>%
         tibble::rownames_to_column(key_name)
 
+    # To prevent errors if there are more categories than options  in the palette
+    # (less likely with pie charts)
+    color_vals <- colorRampPalette(RColorBrewer::brewer.pal(8, name = palette))(
+        ncol(props) - 1
+    )
+
     # Make plot
     plt <- switch(
         plot_type,
+        # Make list of pie charts
         "pie" = lapply(
             p_names,
             \(column) {
+                # Make fig
                 ggplot(
                     props,
                     aes(
@@ -320,15 +346,18 @@ plot_prop_singleans <- function(
                 ) +
                     geom_bar(stat = "identity", width = 1, color = "white") +
                     coord_polar("y", start = 0) +
-                    scale_fill_brewer(palette = palette) +
+                    scale_fill_manual(values = color_vals) +
                     theme_void() +
                     ggtitle(column)
             }
         ) %>%
+            # Tile the list (TODO: consider doing with facet_wrap instead)
             gridExtra::grid.arrange(
                 grobs = .,
                 nrow = ceiling(length(p_names) / 2)
             ),
+        # Grouped barchart (doesn't always make sense for this data
+        # but it's the beginning of an alternative option to a pie chart)
         "grouped_bar" = props %>%
             pivot_longer(
                 cols = -any_of(key_name),
@@ -339,7 +368,8 @@ plot_prop_singleans <- function(
                 aes(fill = Participant, y = Proportion, x = !!ensym(key_name))
             ) +
             geom_bar(position = "dodge", stat = "identity") +
-            scale_fill_brewer(palette = palette),
+            scale_fill_manual(values = color_vals),
+        # Error if unknown plot type
         stop(sprintf("Unknown plot_type argument: %s", plot_type))
     )
 
@@ -347,8 +377,23 @@ plot_prop_singleans <- function(
 }
 
 plot_prop_multians_piecharts <- function(df, mapping, attribute, key_name) {
+    # # # # # # # #
+    # Function: Builds a list of pie charts for each alter for each possible answer in attribute
+    #           NOTE: The utility of this function is rather limited and
+    #           likely requires changes to make it genuinely helpful for analysis.
+    #           Consider tiling the layout of the output, at least.
+    #           Also probably worth reversing the order so participants are the leading index
+    # Inputs:
+    #   df        = A personal network dataframe with rows for each subject
+    #   mapping   = `named double` corresponding labels (names) and values (numeric) for the attribute
+    #   attribute = `string` attribute in which categories can be found (e.g. "relat")
+    #   key_name  = `string` the name to label the legend associated with the mapping options (legend title).
+    # Outputs: A list of 15 (each possible alter), each of those containing a pie charts for each participant
+    #           That is, participant 5, alter 2 can be accessed by: output[[2]][[5]]
+    # # # # # # # #
+
     n_alters <- n_alters_with_data(df)
-    p_names <- sprintf("Participant %s -- n = %s", 1:nrow(df), n_alters)
+    p_names <- sprintf("Participant %s -- n = %s", df$record_id, n_alters)
 
     # For each alter
     out_list <- vector(mode = "list", length = 15)
@@ -400,13 +445,57 @@ plot_prop_multians_piecharts <- function(df, mapping, attribute, key_name) {
 }
 
 
-plot_prop_multians_scatter <- function(df, mapping, attribute, y_name) {
-    plots <- df %>%
+plot_multians_scatter <- function(
+    df,
+    mapping,
+    attribute,
+    record_id_gsub,
+    y_name = NULL,
+    keep_alter_nums = TRUE,
+    point_color = "blue",
+    point_size = 5
+) {
+    # # # # # # # #
+    # Function: Plots a tiled scatterplot for each participant
+    #            showing all attributes associated with each of their alter for this attribute
+    # Inputs:
+    #   df              = A personal network dataframe with rows for each subject
+    #   mapping         = `named double` corresponding labels (names) and values (numeric) for the attribute
+    #   attribute       = `string` attribute in which categories can be found (e.g. "relat")
+    #   record_id_gsub  = `string` indicating the regex to use to sort the record_id column.
+    #                       E.g., if record_id is "P1", "P24", "P3", etc., "P" be removed before sorting.
+    #                       If it's "701-001", "701-024", "701-003", etc., ".*-" should be removed before sorting.
+    #   y_name          = `string` the label of the y-axis. No display if NULL. Default: NULL.
+    #   keep_alter_nums = `logical` if TRUE, keeps alter numbers as they are (e.g., 1, 2, 6, 7).
+    #                       If FALSE, alters are labeled sequentially. Default: TRUE
+    #   point_color     = `string` indicating the color of scatterplot points. Default: "blue"
+    #   point_size      = `numeric` indicating the size of the scatterplot points. Default: 5
+    # Outputs: A ggplot
+    # # # # # # # #
+
+    # Allow for no y_name value
+    if (is.null(y_name)) {
+        # Assign a temporary value that will only be used in the interal dataframe
+        y_name = "temp_yname"
+        # Remove the axis label in the plot
+        y_title = element_blank()
+    } else {
+        y_title = element_text(size = 15)
+    }
+
+    # Build the dataframe to plot
+    to_plot <- df %>%
+        # Sort the df by record_id using the given substitution pattern, but keep the original values
+        arrange(mutate(across(record_id, \(x) {
+            as.numeric(gsub(pattern = record_id_gsub, replacement = "", x))
+        }))) %>%
+        # Get all the answers
         select(matches(sprintf(
-            "^name\\d+%s_+\\d+$",
+            "^name\\d+%s_+\\d+$|^record_id$",
             attribute
         ))) %>%
-        tibble::rownames_to_column(var = "Participant") %>%
+        # Reshape to columns: Participant | Alter | y_name | TF
+        rename(Participant = record_id) %>%
         pivot_longer(
             -Participant,
             names_to = c("Alter", y_name),
@@ -414,25 +503,41 @@ plot_prop_multians_scatter <- function(df, mapping, attribute, y_name) {
             names_pattern = "name(\\d+).*_+(\\d+)",
             names_transform = list(y_name = as.integer)
         ) %>%
+        # Apply recoding via mapping and make other cols factors (needed for plotting)
         mutate(
-            Alter = paste("Alter", Alter),
             !!ensym(y_name) := dplyr::recode(
                 !!ensym(y_name),
                 !!!setNames(names(mapping), mapping)
-            )
+            ),
+            Participant = factor(
+                paste("Participant", Participant),
+                levels = unique(paste("Participant", Participant))
+            ),
+            Alter = factor(Alter, levels = unique(Alter)),
         ) %>%
-        filter(TF == 1) %>%
-        group_by(Participant) %>%
-        group_map(
-            ~ ggplot(., aes(x = Alter, y = !!ensym(y_name))) +
-                geom_point(size = 5, color = "Blue") +
-                theme_bw() +
-                ggtitle(paste("Participant", .y[[1]])) +
-                theme(
-                    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
-                )
-        ) %>%
-        gridExtra::grid.arrange(grobs = ., nrow = ceiling(nrow(df) / 2))
+        # Only take "checked boxes"
+        filter(TF == 1)
 
-    return(plots)
+    # Make plot
+    plt <- to_plot %>%
+        ggplot(aes(x = Alter, y = !!ensym(y_name))) +
+        geom_point(size = point_size, color = point_color)
+
+    if (!keep_alter_nums) {
+        # Don't mark exact alter numbers and just label them sequentally
+        plt <- plt +
+            scale_x_discrete(labels = seq(1, max(as.numeric(to_plot$Alter))))
+    }
+
+    # Final touches and wrapping
+    # free_x allows for different number of alters in each subject
+    plt <- plt +
+        theme_bw() +
+        theme(
+            axis.title = element_text(size = 15),
+            axis.title.y = y_title
+        ) +
+        facet_wrap(~Participant, scales = "free_x")
+
+    return(plt)
 }

@@ -2,16 +2,29 @@
 # This combines the individual exports into the expected form for analysis_als.R
 
 ### Setup
-root_dir <- ""
+root_dir <- "" # Directory in which both files are found
 
-persnet_path <- file.path(root_dir, "")
-demographic_path <- file.path(root_dir, "")
+# Path to persnet file
+persnet_path <- file.path(
+    root_dir,
+    "" # <- <- FILL IN
+)
+
+# Path to demographics file
+demographic_path <- file.path(
+    root_dir,
+    "" # <- <- FILL IN
+)
+
 out_name <- "soccon_persnet_demographic"
 
 ###### Code
 out_meta <- gsub(".*PERSNET(\\d+)_DATA_(.*)_\\d+.csv", "\\1_\\2", persnet_path)
 out_dir <- dirname(persnet_path)
-out_path <- paste0(file.path(out_dir, paste(out_name, out_meta, sep = "_")), ".csv")
+out_path <- paste0(
+    file.path(out_dir, paste(out_name, out_meta, sep = "_")),
+    ".csv"
+)
 
 df_persnet <- read.csv(
     persnet_path,
